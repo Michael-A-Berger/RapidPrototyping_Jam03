@@ -6,19 +6,28 @@ public class PlayerMover : MonoBehaviour
 {
     // Public Properties
     public PlayerAnim animScript;
-    public float maxRunSpeed = 5f;
-    public float secondsToMaxSpeed = 0.2f;
-    public float groundedSecondsToStop = 0.2f;
-    public float airborneSecondsToStop = 1.0f;
-    public float jumpVelocity = 15f;
-    public int midairJumps = 1;
-    public float gravity = 3f;
+    public float normalMaxRunSpeed = 10f;
+    public float normalTimeToMaxSpeed = 0.2f;
+    public float normalGroundedTimeToStop = 0.2f;
+    public float normalAirborneTimeToStop = 1.0f;
+    public float normalJumpVelocity = 15f;
+    public int normalMidairJumps = 1;
+    public float normalGravity = 3f;
     public GameObject wandPrefab;
-    // public float hookMultiplier = 0.2f;
-    public float hookSpeed = 20f;
+    public float normalHookSpeed = 20f;
     public bool debug = false;
     public GameObject debugPrefab1;
     public GameObject debugPrefab2;
+
+    // Private "Current" Properties
+    private float currentMaxRunSpeed;
+    private float currentTimeToMaxSpeed;
+    private float currentGroundedTimeToStop;
+    private float currentAirborneTimeToStop;
+    private float currentJumpVelocity;
+    private float currentMidairJumps;
+    private float currentGravity;
+    private float currentHookSpeed;
 
     // Private Properties
     private Rigidbody2D rigid;
@@ -29,7 +38,6 @@ public class PlayerMover : MonoBehaviour
     private float runTimeStart = 0f;
     private float stopTimeStart = 0f;
     private float decelTime = 0f;
-    private float decelerationMultiplier = 0f;
     private float lastAxisX = 0f;
     private float lastAxisY = 0f;
     private float lastFire1 = 0f;
@@ -47,6 +55,47 @@ public class PlayerMover : MonoBehaviour
         rigid = GetComponent<Rigidbody2D>();
         capsuleCollider = GetComponent<CapsuleCollider2D>();
         boxTrigger = GetComponent<BoxCollider2D>();
+
+        // Setting the movement variables
+        ResetMovementVars();
+    }
+
+    /// <summary>
+    /// ResetMovementVars()
+    /// </summary>
+    private void ResetMovementVars()
+    {
+        // Setting the "Currrent" properties to be the "Normal" values
+        currentMaxRunSpeed          =   normalMaxRunSpeed;
+        currentTimeToMaxSpeed       =   normalTimeToMaxSpeed;
+        currentGroundedTimeToStop   =   normalGroundedTimeToStop;
+        currentAirborneTimeToStop   =   normalAirborneTimeToStop;
+        currentJumpVelocity         =   normalJumpVelocity;
+        currentMidairJumps          =   normalMidairJumps;
+        currentGravity              =   normalGravity;
+        currentHookSpeed            =   normalHookSpeed;
+
+        // Setting the rigidbody gravity
+        rigid.gravityScale = currentGravity;
+    }
+
+    /// <summary>
+    /// WaterMovementVars()
+    /// </summary>
+    private void WaterMovementVars()
+    {
+        // Setting the "Currrent" properties to be the "Water" values
+        currentMaxRunSpeed          = normalMaxRunSpeed / 2f;
+        currentTimeToMaxSpeed       = 0.5f;
+        currentGroundedTimeToStop   = 0.5f;
+        currentAirborneTimeToStop   = 0.5f;
+        currentJumpVelocity         = 8f;
+        currentMidairJumps          = float.PositiveInfinity;
+        currentGravity              = 0.5f;
+        currentHookSpeed            = 15f;
+
+        // Setting the rigidbody gravity
+        rigid.gravityScale = currentGravity;
     }
 
     /// <summary>
@@ -72,14 +121,13 @@ public class PlayerMover : MonoBehaviour
         }
 
         // Calculating the deceleration multiplier
-        decelTime = (grounded) ? groundedSecondsToStop : airborneSecondsToStop;
-        decelerationMultiplier = Mathf.Clamp((stopTimeStart + decelTime - Time.time) / decelTime, 0f, 1f);
+        decelTime = (grounded) ? currentGroundedTimeToStop : currentAirborneTimeToStop;
 
         // Running
         if (axisX != 0f)
         {
             // Calculating the add velocity factor
-            float addVelocityX = axisX * maxRunSpeed * (Time.deltaTime / secondsToMaxSpeed);
+            float addVelocityX = axisX * currentMaxRunSpeed * (Time.deltaTime / currentTimeToMaxSpeed);
 
             // Creating the move vector
             Vector2 moveVector = new Vector2();
@@ -91,14 +139,14 @@ public class PlayerMover : MonoBehaviour
                 moveVector = new Vector2(addVelocityX, 0f);
 
             // IF the velocity and move vectors are different OR the new velocity does not exceed the max velocity...
-            if (rigid.velocity.x / Mathf.Abs(rigid.velocity.x) != axisX || (rigid.velocity + moveVector).magnitude < maxRunSpeed)
+            if (rigid.velocity.x / Mathf.Abs(rigid.velocity.x) != axisX || (rigid.velocity + moveVector).magnitude < currentMaxRunSpeed)
             {
                 rigid.velocity += moveVector;
             }
             // ELSE IF the current velocity is less than the max...
-            else if (rigid.velocity.magnitude < maxRunSpeed)
+            else if (rigid.velocity.magnitude < currentMaxRunSpeed)
             {
-                rigid.velocity = rigid.velocity.normalized * maxRunSpeed;
+                rigid.velocity = rigid.velocity.normalized * currentMaxRunSpeed;
             }
         }
 
@@ -109,7 +157,7 @@ public class PlayerMover : MonoBehaviour
             if (grounded)
             {
                 // Calculate the deceleration vector
-                Vector2 decelVector = (Time.deltaTime / decelTime) * rigid.velocity.normalized * maxRunSpeed;
+                Vector2 decelVector = (Time.deltaTime / decelTime) * rigid.velocity.normalized * currentMaxRunSpeed;
 
                 // IF the deceleration vector is LESS than the current velocity...
                 if (decelVector.magnitude < rigid.velocity.magnitude)
@@ -121,7 +169,7 @@ public class PlayerMover : MonoBehaviour
             else
             {
                 // Calulate the deceleration vector X value
-                float decelX = (Time.deltaTime / decelTime) * (rigid.velocity.x / Mathf.Abs(rigid.velocity.x)) * maxRunSpeed;
+                float decelX = (Time.deltaTime / decelTime) * (rigid.velocity.x / Mathf.Abs(rigid.velocity.x)) * currentMaxRunSpeed;
 
                 // IF the deceleration vector X value is LESS than the current X velocity...
                 if (Mathf.Abs(decelX) < Mathf.Abs(rigid.velocity.x))
@@ -132,9 +180,9 @@ public class PlayerMover : MonoBehaviour
         }
 
         // Jumping
-        if (axisY > 0f && axisY != lastAxisY && (jumpCounter < midairJumps + 1))
+        if (axisY > 0f && axisY != lastAxisY && (jumpCounter < currentMidairJumps + 1))
         {
-            rigid.velocity = new Vector2(rigid.velocity.x, jumpVelocity);
+            rigid.velocity = new Vector2(rigid.velocity.x, currentJumpVelocity);
             grounded = false;
             jumpCounter++;
         }
@@ -170,7 +218,7 @@ public class PlayerMover : MonoBehaviour
             // IF the Wand has been hooked...
             if (wandScript.IsHooked())
             {
-                Vector2 modVector = wandSpawnLocation * hookSpeed * Time.deltaTime * maxRunSpeed;
+                Vector2 modVector = wandSpawnLocation * currentHookSpeed * Time.deltaTime * currentMaxRunSpeed;
                 rigid.velocity += modVector;
 
             }
@@ -234,15 +282,25 @@ public class PlayerMover : MonoBehaviour
             {
                 if (grounded)
                 {
-                    Debug.Log("\t=== GROUNDED ===");
                     Instantiate(debugPrefab1, closestPoint, Quaternion.identity);
                 }
                 else
                 {
-                    Debug.Log("\t=== STILL IN AIR ===");
                     Instantiate(debugPrefab2, closestPoint, Quaternion.identity);
                 }
             }
+        }
+
+        // IF the other collider is Water...
+        if (other.gameObject.tag == "Water")
+        {
+            Debug.Log("\t=== Entered Water! ===");
+
+            // Cut velocity by 20%
+            rigid.velocity *= 0.8f;
+
+            // Setting the water movement variables
+            WaterMovementVars();
         }
     }
 
@@ -279,8 +337,19 @@ public class PlayerMover : MonoBehaviour
         if (other.gameObject.tag == "Platform")
         {
             // Enable gravity
-            rigid.gravityScale = gravity;
+            rigid.gravityScale = currentGravity;
             grounded = false;
+        }
+
+        // IF the other collider is Water...
+        if (other.gameObject.tag == "Water")
+        {
+            Debug.Log("\t=== Left Water! ===");
+            // Resetting the normal movement variables
+            ResetMovementVars();
+
+            // Letting the player double-jump once to get out of the water
+            jumpCounter = 1;
         }
     }
 }

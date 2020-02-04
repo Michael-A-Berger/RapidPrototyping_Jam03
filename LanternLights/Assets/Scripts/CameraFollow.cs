@@ -20,6 +20,6 @@ public class CameraFollow : MonoBehaviour
     void Update()
     {
         Vector3 newPos = new Vector3(objectToFollow.transform.position.x, objectToFollow.transform.position.y, main.transform.position.z);
-        main.transform.position = Vector3.Lerp(transform.position, newPos, 0.1f);
+        main.transform.position = Vector3.Lerp(transform.position, newPos, 0.2f);
     }
 }
